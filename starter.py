@@ -1,6 +1,6 @@
 from pyquil.quil import Program
 from pyquil.api import QVMConnection
-from pyquil.gates import CNOT, H, RZ
+from pyquil.gates import CNOT, H, RZ, RY, RX, CZ
 from pyquil.parameters import Parameter
 from pyquil.parametric import ParametricProgram
 import numpy as np
@@ -13,65 +13,95 @@ def prep_state_program(x):
     for i in range(0, len(x)):
         angle = math.pi*x[i]/2
         prog.inst(RY(angle, i))
-    print(prog)
     return prog
 
 def single_qubit_unitary(angles):
-    return RX(angle[0]), RZ(angle[1]), RX(angle[2])
+    return RX(angles[0]), RZ(angles[1]), RX(angles[2])
 
 
 def prep_parametric_gates(n, params):
     #n is the number of qubits. Here we create a circuit using only using 1 and 2 qubit unitaries
     #Every 1 qubit unitary can be encoded as 3 parametric rotations - rx,rz,rx
     gates = []
-    for i in range(0, math.log(n, 2)):
+    l = math.floor(math.log(n, 2))
+    for i in range(0, l):
         layer_gates = []
-        for j in range(0, math.pow(2, n-i-1)):
+        for j in range(0, math.floor(math.pow(2, l-i-1))):
             single_qubit_gates = []
             q1 = 2**i - 1 + j*(2**(i + 1))
-            q2 = 2**i + j*(2**(i + 1) + 1)
+            q2 = q1  + 2**i
             for k in range(0, 3):
-                single_qubit_gates += [[single_qubit_unitary(params[i][j][k][0]), single_qubit_unitary(params[i][j][k][0])]]
-            layer_gates +=[two_qubit_gate]
+                single_qubit_gates += [[single_qubit_unitary(params[i][j][k][0]), single_qubit_unitary(params[i][j][k][1])]]
+            layer_gates += [single_qubit_gates]
         gates += [layer_gates]
+    gates += [single_qubit_unitary(params[math.floor(math.log(n, 2))])]
     return gates
 
+def init_params(n):
+    params = []
+    l = math.floor(math.log(n, 2))
+    for i in range(0, l):
+        i_level = []
+        for j in range(0, math.floor(math.pow(2, l-i-1))):
+            j_level = []
+            for k in range(0, 3):
+                qubit_one_params = 2*math.pi*np.random.rand(3)
+                qubit_two_params = 2*math.pi*np.random.rand(3)
+                k_level = [qubit_one_params, qubit_two_params]
+                j_level += [k_level]
+            i_level += [j_level]
+        params += [i_level]
+    params += [2*math.pi*np.random.rand(3)]
+    return params
 
 
 
 def prep_circuit(n, params):
     prog = Program()
+    #Prepare parametric gates
     single_qubit_unitaries = prep_parametric_gates(n, params)
-    for i in range(0, math.log(n, 2)):
-        #number of gates in the ith layer is 2^(n-i-1)
-        angles = params[i]
-        for j in range(0, math.pow(2, n-i-1)):
+    l = math.floor(math.log(n, 2))
+    for i in range(0, l):
+        #number of gates in the ith layer is 2^(log(n)-i-1)
+        for j in range(0, math.floor(math.pow(2, l-i-1))):
             q1 = 2**i - 1 + j*(2**(i + 1))
-            q2 = 2**i + j*(2**(i + 1) + 1)
+            q2 = q1  + 2**i
+            print(q1, q2)
             for k in range(0, 3):
                 prog.inst([g(q1) for g in single_qubit_unitaries[i][j][k][0]])
                 prog.inst([g(q2) for g in single_qubit_unitaries[i][j][k][1]])
                 prog.inst(CZ(q1, q2))
-        prog.inst(single_qubit_unitary[math.log(n, 2) + 1](n - 1))
-        prog.measure(0, 0)
+    prog.inst([g(n - 1) for g in single_qubit_unitaries[math.floor(math.log(n, 2))]])
+    prog.measure(n - 1, 0)
             #create each block
     return prog
 
 def train():
     data = np.loadtxt(open("data/data.csv", "rb"), delimiter = ",")
-    labels = np.loadtxt(open("data/labels.csv", "rb"), delimiter = ",")
-    prep_state_program([7.476498897658023779e-01,2.523501102341976221e-01,0.000000000000000000e+00,0.000000000000000000e+00])
+    labels = np .loadtxt(open("data/labels.csv", "rb"), delimiter = ",")
+    #prep_state_program([7.476498897658023779e-01,2.523501102341976221e-01,0.000000000000000000e+00,0.000000000000000000e+00])
+    #Number of qubits
+    n = len(data[0])
 
-    #Prepare parametric gates
     #Prepare circuit
-    par_p = ParametricProgram(prep_circuit)
-    #Prepare parametric gates
-    #Run SPSA
-    #Save parameterss
+    #TODO: Can this be optimized into 1 parametric program?
+    # par_prep_state = ParametricProgram(prep_state_program)
+    # par_pred_circuit = ParametricProgram(prep_circuit)
 
+    #Shuffle data
+    combined = np.hstack((data, labels[np.newaxis].T))
+    np.random.shuffle(combined)
+    data = combined[:,list(range(n))]
+    labels = combined[:,n]
+    #Save parameters
+    params = init_params(n)
     #define qubits in each layer
+    p = Program().inst(prep_state_program(data[0]) + prep_circuit(n, params))
+    qvm = QVMConnection()
 
-
-
-if __name__ == "__main__":
+    print(qvm.run(p, [0], trials = 10))
+    # print(p)
+    # for i in range(len(data)):
+    #     p = Program().inst(par_prep_state(data[i]) + par_pred_circuit(n, params))
+if __name__ == '__main__':
     train()

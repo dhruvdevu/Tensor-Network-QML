@@ -115,6 +115,22 @@ def tensorize(params_vec, n):
     params.append(last_unitary)
     return params
 
+def get_distribution(params, n, sample):
+    p = Program().inst(prep_state_program(sample) + prep_circuit(n, params))
+    qvm = QVMConnection()
+    res = qvm.run(p, [0], trials = 100)
+    count_0 = 0.0
+    for x in res:
+        if x[0] == 0:
+            count_0 += 1.0
+    return (count_0/100, 1-count_0/100)
+
+def get_loss(params_vec, n, sample, label, lam, eta):
+    label = math.floor(label)
+    dist = get_distribution(tensorize(params_vec, n), n, sample)
+    return (max(dist[1 - label] - dist[label] + lam, 0.0)) ** eta
+
+
 
 def train():
     data = np.loadtxt(open("data/data.csv", "rb"), delimiter = ",")
@@ -135,15 +151,9 @@ def train():
     labels = combined[:,n]
     #Save parameters
     params = init_params(n)
-    vec = vectorize(params, n)
-    params = tensorize(vec, n)
-    #define qubits in each layer
-    p = Program().inst(prep_state_program(data[0]) + prep_circuit(n, params))
-    qvm = QVMConnection()
+    lam = 0
+    eta = 1
+    print(get_loss(vectorize(params, n), n, data[0], labels[0], lam, eta))
 
-    print(qvm.run(p, [0], trials = 10))
-    # print(p)
-    # for i in range(len(data)):
-    #     p = Program().inst(par_prep_state(data[i]) + par_pred_circuit(n, params))
 if __name__ == '__main__':
     train()

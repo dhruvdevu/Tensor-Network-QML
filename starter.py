@@ -3,6 +3,7 @@ from pyquil.api import QVMConnection
 from pyquil.gates import CNOT, H, RZ, RY, RX, CZ
 from pyquil.parameters import Parameter
 from pyquil.parametric import ParametricProgram
+from collections import deque
 import numpy as np
 import math
 
@@ -47,11 +48,11 @@ def init_params(n):
             for k in range(0, 3):
                 qubit_one_params = 2*math.pi*np.random.rand(3)
                 qubit_two_params = 2*math.pi*np.random.rand(3)
-                k_level = [qubit_one_params, qubit_two_params]
+                k_level = [list(qubit_one_params), list(qubit_two_params)]
                 j_level += [k_level]
             i_level += [j_level]
         params += [i_level]
-    params += [2*math.pi*np.random.rand(3)]
+    params += [list(2*math.pi*np.random.rand(3))]
     return params
 
 
@@ -76,6 +77,45 @@ def prep_circuit(n, params):
             #create each block
     return prog
 
+def vectorize(params, n):
+    params_vec = []
+    l = math.floor(math.log(n, 2))
+    for i in range(0, l):
+        i_level = []
+        for j in range(0, math.floor(math.pow(2, l-i-1))):
+            j_level = []
+            for k in range(0, 3):
+                params_vec += params[i][j][k][0]
+                params_vec += params[i][j][k][1]
+    params_vec += params[math.floor(math.log(n, 2))]
+    return params_vec
+
+def tensorize(params_vec, n):
+    params_vec = deque(params_vec)
+    params = []
+    l = math.floor(math.log(n, 2))
+    for i in range(0, l):
+        i_level = []
+        for j in range(0, math.floor(math.pow(2, l-i-1))):
+            j_level = []
+            for k in range(0, 3):
+                qubit_one_params = []
+                for l in range(0, 3):
+                    qubit_one_params.append(params_vec.popleft())
+                qubit_two_params = []
+                for l in range(0, 3):
+                    qubit_two_params.append(params_vec.popleft())
+                k_level = [qubit_one_params, qubit_two_params]
+                j_level += [k_level]
+            i_level += [j_level]
+        params += [i_level]
+    last_unitary = []
+    for l in range(0, 3):
+        last_unitary += [params_vec.popleft()]
+    params.append(last_unitary)
+    return params
+
+
 def train():
     data = np.loadtxt(open("data/data.csv", "rb"), delimiter = ",")
     labels = np .loadtxt(open("data/labels.csv", "rb"), delimiter = ",")
@@ -95,6 +135,8 @@ def train():
     labels = combined[:,n]
     #Save parameters
     params = init_params(n)
+    vec = vectorize(params, n)
+    params = tensorize(vec, n)
     #define qubits in each layer
     p = Program().inst(prep_state_program(data[0]) + prep_circuit(n, params))
     qvm = QVMConnection()

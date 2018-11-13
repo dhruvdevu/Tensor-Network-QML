@@ -4,8 +4,6 @@ from pyquil.gates import CNOT, H, RZ, RY, RX, CZ
 from pyquil.parameters import Parameter
 from pyquil.parametric import ParametricProgram
 from collections import deque
-# from pyswarms.single.global_best import GlobalBestPSO
-from pyswarm import pso
 import numpy as np
 import math
 import scipy
@@ -121,7 +119,10 @@ def tensorize(params_vec, n):
     return params
 
 def get_distribution(params, n, sample):
-    num_trials = 10
+    # The length of the sample vector should be equal to the number
+    # of qubits.
+    assert (n == len(sample))
+    num_trials = 25
     p = Program().inst(prep_state_program(sample) + prep_circuit(n, params))
     qvm = QVMConnection()
     res = qvm.run(p, [0], trials = num_trials)
@@ -131,29 +132,47 @@ def get_distribution(params, n, sample):
             count_0 += 1.0
     return (count_0/num_trials, 1-count_0/num_trials)
 
-def get_loss(params_vec, *args):
+def get_loss(params_vec, *args, **kwargs):
     loss = 0.0
-    n, samples, labels, lam, eta = args
+    n, samples, labels, lam, eta, batch_size = args
     print("Vec", params_vec)
     params = tensorize(params_vec, n)
-    for i in range(len(samples)):
+
+    # We insert some code to only grab some of the training set (randomly drawn, with replacement):
+    if ('seed' in kwargs.keys()):
+        seed = kwargs['seed']
+        # print(seed)
+        np.random.seed(seed)
+
+    combined = np.hstack((samples, labels[np.newaxis].T))
+    np.random.shuffle(combined)
+    samples = combined[:,list(range(n))]
+    labels = combined[:,n]
+
+    for i in range(batch_size):
         sample = samples[i]
+        # print(sample)
         label = math.floor(labels[i])
         dist = get_distribution(params, n, sample)
         loss += (max(dist[1 - label] - dist[label] + lam, 0.0)) ** eta
-    print(loss)
+
+    loss /= batch_size
+    print("Loss: %f" % loss)
     return loss
 
 def get_multiloss(params_vecs, *args):
     return [get_loss(x, args) for x in params_vecs]
 
 
-def train():
+def load_data():
+    """This method loads the data and separates it into testing and training data."""
+
     data = np.loadtxt(open("data/data.csv", "rb"), delimiter = ",")
     labels = np .loadtxt(open("data/labels.csv", "rb"), delimiter = ",")
     #prep_state_program([7.476498897658023779e-01,2.523501102341976221e-01,0.000000000000000000e+00,0.000000000000000000e+00])
     #Number of qubits
     n = len(data[0])
+    print("n: %d" % n)
 
     #Prepare circuit
     #TODO: Can this be optimized into 1 parametric program?
@@ -170,38 +189,5 @@ def train():
     train_labels = labels[:num_training]
     test_data = data[num_training:]
     test_labels = labels[num_training:]
-    #Save parameters
-    params = init_params(n)
-    num_epochs = 15
-    batch_size = 5
-    lam = 0
-    eta = 1
-    # Can optimize in batches
-    # for i in range(num_epochs):
-    #     sample_indices = np.random.randint(train_data.shape[0], size=batch_size)
-    #     samples = train_data[sample_indices, :]
-    #     sample_labels = train_labels[sample_indices, :]
-    vec_params = vectorize(params, n)
-    # print(get_loss(vectorize(params, n), n, train_data, train_labels, lam, eta))
 
-    dim = len(vec_params)
-    print(dim)
-    bounds = (np.zeros(dim), 2*math.pi*np.ones(dim))
-    # options = {'c1': 0.5, 'c2': 0.3, 'w': 0.9}
-    # optimizer = GlobalBestPSO(n_particles=2, dimensions=dim, options=options, bounds=bounds)
-    # cost, pos = optimizer.optimize(get_multiloss, 100, print_step=10, verbose=3,\
-    # n=n, samples=train_data, labels=train_labels, lam=lam, eta=eta)
-    # print(cost, pos)
-    xopt, fopt = pso(get_loss, bounds[0], bounds[1], args=(n, train_data, train_labels, lam, eta), swarmsize=10, maxiter=10)
-    print(xopt, fopt)
-    params_vec = xopt
-
-    params = tensorize(params_vec, n)
-    num_correct = 0
-    for i in range(len(data)):
-        dist =  get_distribution(params, n, data[i])
-        if dist[math.floor(labels[i])] > 0.5:
-            num_correct += 1
-    print("test accuracy = ", num_correct/len(data))
-if __name__ == '__main__':
-    train()
+    return (train_data, train_labels, test_data, test_labels)

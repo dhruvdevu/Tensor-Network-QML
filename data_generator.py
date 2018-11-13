@@ -4,12 +4,12 @@ def generate_data():
     """Generate binary labelled data of the form [0, num, num, 0] and [num, num, 0, 0]"""
     data = []
     labels = []
-    for i in range (0, 50):
+    for i in range (0, 50 ):
         x = np.random.random_sample()
         data.append([x, 1-x, 0, 0])
         labels.append(0)
 
-    for j in range(50, 100):
+    for j in range(50 , 100  ):
         x = np.random.random_sample()
         data.append([0, x, 1-x, 0])
         labels.append(1)

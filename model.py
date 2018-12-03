@@ -1,13 +1,12 @@
-from pyquil.quil import Program
-from pyquil.api import QVMConnection
+from pyquil import Program, get_qc
 from pyquil.gates import CNOT, H, RZ, RY, RX, CZ
-from pyquil.parameters import Parameter
-from pyquil.parametric import ParametricProgram
+
 from collections import deque
 import numpy as np
 import math
 import scipy
 
+qc = get_qc("4q-qvm")
 
 def prep_state_program(x):
     #TODO: Prep a state given classical vector x
@@ -17,8 +16,8 @@ def prep_state_program(x):
         prog.inst(RY(angle, i))
     return prog
 
-def single_qubit_unitary(angles):
-    return RX(angles[0]), RZ(angles[1]), RX(angles[2])
+def single_qubit_unitary(angles, qubit):
+    return RX(angles[0], qubit), RZ(angles[1], qubit), RX(angles[2], qubit)
 
 
 def prep_parametric_gates(n, params):
@@ -33,10 +32,10 @@ def prep_parametric_gates(n, params):
             q1 = 2**i - 1 + j*(2**(i + 1))
             q2 = q1  + 2**i
             for k in range(0, 3):
-                single_qubit_gates += [[single_qubit_unitary(params[i][j][k][0]), single_qubit_unitary(params[i][j][k][1])]]
+                single_qubit_gates += [[single_qubit_unitary(params[i][j][k][0], q1), single_qubit_unitary(params[i][j][k][1], q2)]]
             layer_gates += [single_qubit_gates]
         gates += [layer_gates]
-    gates += [single_qubit_unitary(params[math.floor(math.log(n, 2))])]
+    gates += [single_qubit_unitary(params[math.floor(math.log(n, 2))], n - 1)]
     return gates
 
 def init_params(n):
@@ -68,13 +67,12 @@ def prep_circuit(n, params):
         for j in range(0, math.floor(math.pow(2, l-i-1))):
             q1 = 2**i - 1 + j*(2**(i + 1))
             q2 = q1  + 2**i
-            # print(q1, q2)
             for k in range(0, 3):
-                prog.inst([g(q1) for g in single_qubit_unitaries[i][j][k][0]])
-                prog.inst([g(q2) for g in single_qubit_unitaries[i][j][k][1]])
+                prog.inst([g for g in single_qubit_unitaries[i][j][k][0]])
+                prog.inst([g for g in single_qubit_unitaries[i][j][k][1]])
                 prog.inst(CZ(q1, q2))
-    prog.inst([g(n - 1) for g in single_qubit_unitaries[math.floor(math.log(n, 2))]])
-    prog.measure(n - 1, 0)
+    prog.inst([g for g in single_qubit_unitaries[math.floor(math.log(n, 2))]])
+
             #create each block
     return prog
 
@@ -124,11 +122,12 @@ def get_distribution(params, n, sample):
     assert (n == len(sample))
     num_trials = 25
     p = Program().inst(prep_state_program(sample) + prep_circuit(n, params))
-    qvm = QVMConnection()
-    res = qvm.run(p, [0], trials = num_trials)
+    # Only want the nth qubit
+    res = qc.run_and_measure(p, trials=num_trials)[n - 1]
     count_0 = 0.0
+    # print(res)
     for x in res:
-        if x[0] == 0:
+        if x == 0:
             count_0 += 1.0
     return (count_0/num_trials, 1-count_0/num_trials)
 

@@ -46,6 +46,7 @@ def init_params(n):
         for j in range(0, math.floor(math.pow(2, l-i-1))):
             j_level = []
             for k in range(0, 3):
+                # TODO: Can make program parametric here
                 qubit_one_params = 2*math.pi*np.random.rand(3)
                 qubit_two_params = 2*math.pi*np.random.rand(3)
                 k_level = [list(qubit_one_params), list(qubit_two_params)]
@@ -68,6 +69,8 @@ def prep_circuit(n, params):
             q1 = 2**i - 1 + j*(2**(i + 1))
             q2 = q1  + 2**i
             for k in range(0, 3):
+                #TODO: call the function to create gates in here instead of creating them beforehand
+                #Declare the parameters here and just pass them to the single qqubit unitary function
                 prog.inst([g for g in single_qubit_unitaries[i][j][k][0]])
                 prog.inst([g for g in single_qubit_unitaries[i][j][k][1]])
                 prog.inst(CZ(q1, q2))

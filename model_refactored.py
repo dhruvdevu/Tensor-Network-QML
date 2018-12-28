@@ -25,6 +25,7 @@ class Model:
         self.executable = self.qc.compile(self.program)
         compile_end = time.time()
         print("Compile time = ", compile_end - compile_start)
+        self.num_runs = 0
 
 
 
@@ -116,6 +117,7 @@ class Model:
         assert (self.n == len(sample))
         # Only want the nth qubit
         res = self.qc.run(self.executable, memory_map={'params': params, 'sample': sample})
+        self.num_runs += self.num_trials
         count_0 = 0.0
         # print(res)
         for x in res:
@@ -146,28 +148,3 @@ class Model:
 
     def get_multiloss(self, params_vecs, *args):
         return [self.get_loss(x, args) for x in params_vecs]
-
-
-def load_data():
-    """This method loads the data and separates it into testing and training data."""
-
-    data = np.loadtxt(open("data/data.csv", "rb"), delimiter = ",")
-    labels = np.loadtxt(open("data/labels.csv", "rb"), delimiter = ",")
-    #prep_state_program([7.476498897658023779e-01,2.523501102341976221e-01,0.000000000000000000e+00,0.000000000000000000e+00])
-    #Number of qubits
-    n = len(data[0])
-    # print("n: %d" % n)
-
-
-    #Shuffle data
-    combined = np.hstack((data, labels[np.newaxis].T))
-    np.random.shuffle(combined)
-    data = combined[:,list(range(n))]
-    labels = combined[:,n]
-    num_training = math.floor(0.7*len(data))
-    train_data = data[:num_training]
-    train_labels = labels[:num_training]
-    test_data = data[num_training:]
-    test_labels = labels[num_training:]
-
-    return (train_data, train_labels, test_data, test_labels)

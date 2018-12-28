@@ -169,8 +169,8 @@ def get_multiloss(params_vecs, *args):
 def load_data():
     """This method loads the data and separates it into testing and training data."""
 
-    data = np.loadtxt(open("data/data.csv", "rb"), delimiter = ",")
-    labels = np .loadtxt(open("data/labels.csv", "rb"), delimiter = ",")
+    data = np.loadtxt(open("data/data_bw.csv", "rb"), delimiter = ",")
+    labels = np .loadtxt(open("data/labels_bw.csv", "rb"), delimiter = ",")
     #prep_state_program([7.476498897658023779e-01,2.523501102341976221e-01,0.000000000000000000e+00,0.000000000000000000e+00])
     #Number of qubits
     n = len(data[0])

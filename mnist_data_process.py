@@ -88,43 +88,46 @@ class DataGenerator:
             # For now, no featurization
             processed_images.append(shrunk_image)
 
-            new_label = one_hot(
-                index=classes.index(np.argmax(label)),
-                length=CONFIG["arch"].num_classes)
+            # new_label = one_hot(
+            #     index=classes.index(np.argmax(label)),
+            #     length=len(classes))
+            # Pick label instead of one-hot (TODO: remove 1-hot)
+            new_label = list(label).index(1)
+
             labels.append(new_label)
 
         # Repackage into numpy arrays and return
         processed_images, labels = np.array(processed_images), np.array(labels)
         return processed_images, labels
 
-    def downsample(self, data_type="train", classes=None):
+    def downsample(self, data_type="train", classes=set([0, 1])):
         """
         A function for pruning the data and labels belonging to unwanted classes.
         """
+        assert len(classes) == 2
         if data_type == "train":
             X, y = self.raw_train_data, self.raw_train_labels
         elif data_type =='test':
             X, y = self.raw_test_data, self.raw_test_labels
         else:
             raise NotImplementedError('Other data types not yet implemented.')
-        print(classes)
 
-        if classes is None: # Label dataset using the mode specified in config
-            classes = set([int(c) for c in CONFIG["data"].classes_to_use.split(",")])
+        # if classes is None: # Label dataset using the mode specified in config
+        #     classes = set([int(c) for c in CONFIG["data"].classes_to_use.split(",")])
+        #
+        # if len(classes) == 1: # Do one vs. all classification
+        #     c = list(classes)[0]
+        #     images_and_labels = [(X[index], one_hot(1 if int(np.argmax(y[index])) == c else 0))
+        #                          for index in range(len(X))]
+        #     classes = set([0, 1])
+        # else: # Prune images by those which don't have specified labels
 
-        if len(classes) == 1: # Do one vs. all classification
-            c = list(classes)[0]
-            images_and_labels = [(X[index], one_hot(1 if int(np.argmax(y[index])) == c else 0))
-                                 for index in range(len(X))]
-            classes = set([0, 1])
-        else: # Prune images by those which don't have specified labels
-            images_and_labels = [(X[index], y[index])
-                                 for index in range(len(X))
-                                 if int(np.argmax(y[index])) in classes]
+        images_and_labels = [(X[index], y[index])
+                             for index in range(len(X))
+                             if int(np.argmax(y[index])) in classes]
 
-        CONFIG["arch"].num_classes = len(classes) # NOTE: This should be run before the model is constructed
-        print(classes)
-        assert len(classes) == 2
+
+
 
         return images_and_labels, classes
 
@@ -169,8 +172,8 @@ def get_raw_mnist():
     @return Four numpy arrays, the first holding training data, the second the
     training labels, the third the test data, and the fourth the test labels.
     """
-    data_dir = self.data_directory
-    test_set = CONFIG["data"].test_set
+    data_dir = DATA_DIR
+    # test_set = CONFIG["data"].test_set
     assert os.path.exists(data_dir)
     path = os.path.join(data_dir, "mnist.pkl.gz")
 
@@ -185,7 +188,6 @@ def get_raw_mnist():
         """
         X = unpickled[0] * 255
         y = unpickled[1]
-
         one_hot_y = []
         for index in range(len(y)):
             one_hot_y.append(one_hot(y[index], 10))
@@ -198,18 +200,19 @@ def get_raw_mnist():
 
     train_data, train_labels = process_raw_data(train)
 
-    if (test_set == "cross-validation"):
-        train_data, train_labels, test_data, test_labels = split_data(
-            train_data, train_labels)
-
-    elif (test_set == "validation"):
-        test_data, test_labels = process_raw_data(val)
-
-    elif (test_set == "test"):
-        test_data, test_labels = process_raw_data(test)
-
-    else:
-        raise ValueError("Invalid input for test_set option.")
+    # if (test_set == "cross-validation"):
+    #     train_data, train_labels, test_data, test_labels = split_data(
+    #         train_data, train_labels)
+    #
+    # elif (test_set == "validation"):
+    #     test_data, test_labels = process_raw_data(val)
+    #
+    # elif (test_set == "test"):
+    #     test_data, test_labels = process_raw_data(test)
+    #
+    # else:
+    #     raise ValueError("Invalid input for test_set option.")
+    test_data, test_labels = process_raw_data(val)
 
     return train_data, train_labels, test_data, test_labels
 

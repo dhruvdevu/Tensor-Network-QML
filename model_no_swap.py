@@ -7,17 +7,19 @@ import math
 import scipy
 import time
 
+gates = [[1,2], [2,3], [3,4], [5,6], [6,7], [7,8], [9,10], [10,11], [11, 12], [13,14], [14,15], [15,16], [4,8], [12,16], [8, 16]]
+
 class Model:
 
     def __init__(self, **kwargs):
         self.n = kwargs['n']
-        self.qc = get_qc("16q-qvm") #get_qc("Aspen-1-16Q-A-qvm")#get_qc("16q-qvm")
+        self.qc = get_qc("Aspen-0-16Q-A-qvm")
         self.num_trials = kwargs['num_trials']
         if ('seed' in kwargs.keys()):
             seed = kwargs['seed']
             # print(seed)
             np.random.seed(seed)
-        self.params_mapping = self.prep_parameter_mapping()
+        # self.params_mapping = self.prep_parameter_mapping()
         self.count = 0
         self.program = Program().inst(self.prep_state_program() + self.prep_circuit_program())
         self.program.wrap_in_numshots_loop(shots=self.num_trials)
@@ -41,20 +43,21 @@ class Model:
     def single_qubit_unitary(self, angles, qubit):
         return RX(angles[0], qubit), RZ(angles[1], qubit), RX(angles[2], qubit)
 
-    def prep_parameter_mapping(self):
-        #n is the number of qubits. Here we create a circuit using only using 1 and 2 qubit unitaries
-        gates = []
-        l = math.floor(math.log(self.n, 2))
-        for i in range(0, l):
-            layer_gates = []
-            for j in range(0, math.floor(math.pow(2, l-i-1))):
-                single_qubit_gates = []
-                for k in range(0, 3):
-                    single_qubit_gates += [[-1, -1]]
-                layer_gates += [single_qubit_gates]
-            gates += [layer_gates]
-        gates += [-1]
-        return gates
+    # def prep_parameter_mapping(self):
+    #     #n is the number of qubits. Here we create a circuit using only using 1 and 2 qubit unitaries
+    #     # -1 is for init
+    #     gates = []
+    #     l = math.floor(math.log(self.n, 2))
+    #     for i in range(0, l):
+    #         layer_gates = []
+    #         for j in range(0, math.floor(math.pow(2, l-i-1))):
+    #             single_qubit_gates = []
+    #             for k in range(0, 3):
+    #                 single_qubit_gates += [[-1, -1]]
+    #             layer_gates += [single_qubit_gates]
+    #         gates += [layer_gates]
+    #     gates += [-1]
+    #     return gates
 
     def init_params(self, num_params):
         params = list(2*math.pi*np.random.rand(num_params))
@@ -93,17 +96,20 @@ class Model:
 
     def get_params_and_mapping(self, prog):
         #TODO: Validate the input
-        params_mapping = self.params_mapping
+        # params_mapping = self.params_mapping
+        for gate in gates:
+            for k in range(0, 3):
+                params += []
         count = 0
-        l = math.floor(math.log(self.n, 2))
+        l = 4 #blocks of 4
         for i in range(0, l):
-            for j in range(0, math.floor(math.pow(2, l-i-1))):
+            for j in range(i, i + 4):
                 for k in range(0, 3):
                     params_mapping[i][j][k][0] = count
                     count += 3
                     params_mapping[i][j][k][1] = count
                     count += 3
-        params_mapping[math.floor(math.log(self.n, 2))] = count
+        params_mapping[4] = count
         count += 3
         self.count = count
         print(count)

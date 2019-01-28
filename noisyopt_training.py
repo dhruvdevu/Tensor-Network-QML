@@ -6,7 +6,7 @@ from noisyopt import minimizeSPSA
 import numpy as np
 import utils
 
-def train(train_data, train_labels, mo):
+def train(train_data, train_labels, mod):
     """
     """
 

@@ -7,7 +7,7 @@ import math
 import scipy
 import time
 
-gates = [[1,2], [2,3], [3,4], [5,6], [6,7], [7,8], [9,10], [10,11], [11, 12], [13,14], [14,15], [15,16], [4,8], [12,16], [8, 16]]
+gates = [[0,1], [1,2], [2,3], [4,5], [5,6], [6,7], [8,9], [9,10], [10, 11], [12,13], [13,14], [14,15], [3,7], [11,15], [7, 15]]
 
 class Model:
 
@@ -35,7 +35,7 @@ class Model:
         prog = Program()
         sample = prog.declare('sample', memory_type='REAL', memory_size=self.n)
         for i in range(0, self.n):
-            angle = math.pi*sample[i]/2
+            angle = math.pi*sample[i]#/2
             prog.inst(RY(angle, i))
         return prog
 
@@ -63,7 +63,7 @@ class Model:
         angles = self.params[index], self.params[index+1], self.params[index+2]
         prog.inst([g for g in self.single_qubit_unitary(angles, self.n - 1)])
         ro = prog.declare('ro', memory_type='BIT', memory_size=1)
-        prog.measure(self.n - 1, ro[0])
+        prog.measure(0, ro[0])
         return prog
 
     def get_params(self, prog):

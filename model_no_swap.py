@@ -1,5 +1,5 @@
 from pyquil import Program, get_qc
-from pyquil.gates import CNOT, H, RZ, RY, RX, CZ
+from pyquil.gates import CNOT, H, RZ, RY, RX, CZ, MEASURE
 
 from collections import deque
 import numpy as np
@@ -13,14 +13,15 @@ class Model:
 
     def __init__(self, **kwargs):
         self.n = kwargs['n']
-        self.qc = get_qc("16q-qvm")
+        self.qc = get_qc("16q-qvm")#get_qc("Aspen-1-15Q-A", as_qvm=True, noisy=False)
         self.num_trials = kwargs['num_trials']
         if ('seed' in kwargs.keys()):
             seed = kwargs['seed']
             # print(seed)
             np.random.seed(seed)
         self.count = 18*len(gates) + 3
-        self.program = Program().inst(self.prep_state_program() + self.prep_circuit_program())
+        prog = self.prep_state_program()
+        self.program = self.prep_circuit_program(prog)
         self.program.wrap_in_numshots_loop(shots=self.num_trials)
         compile_start = time.time()
         self.executable = self.qc.compile(self.program)
@@ -35,16 +36,16 @@ class Model:
         prog = Program()
         sample = prog.declare('sample', memory_type='REAL', memory_size=self.n)
         for i in range(0, self.n):
-            angle = math.pi*sample[i]#/2
+            angle = math.pi*sample[i]/2
             prog.inst(RY(angle, i))
         return prog
 
     def single_qubit_unitary(self, angles, qubit):
         return RX(angles[0], qubit), RZ(angles[1], qubit), RX(angles[2], qubit)
 
-    def prep_circuit_program(self):
-        prog = Program()
+    def prep_circuit_program(self, prog):
         #Prepare parametric gates
+        ro = prog.declare('ro', memory_type='BIT')
         self.params = self.get_params(prog)
         params_dict = {}
         for i in range(len(gates)):
@@ -62,8 +63,8 @@ class Model:
         index = 18*len(gates)
         angles = self.params[index], self.params[index+1], self.params[index+2]
         prog.inst([g for g in self.single_qubit_unitary(angles, self.n - 1)])
-        ro = prog.declare('ro', memory_type='BIT', memory_size=1)
-        prog.measure(0, ro[0])
+
+        prog += MEASURE(15, ro)
         return prog
 
     def get_params(self, prog):

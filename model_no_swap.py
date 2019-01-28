@@ -19,8 +19,7 @@ class Model:
             seed = kwargs['seed']
             # print(seed)
             np.random.seed(seed)
-        self.params_mapping = self.prep_parameter_mapping()
-        self.count = 0
+        self.count = 18*len(gates) + 3
         self.program = Program().inst(self.prep_state_program() + self.prep_circuit_program())
         self.program.wrap_in_numshots_loop(shots=self.num_trials)
         compile_start = time.time()
@@ -43,54 +42,16 @@ class Model:
     def single_qubit_unitary(self, angles, qubit):
         return RX(angles[0], qubit), RZ(angles[1], qubit), RX(angles[2], qubit)
 
-    def prep_parameter_mapping(self):
-        # l = 4 #blocks of 4
-        # params_mapping = []
-        # for i in range(0, l):
-        #     block_gates = []
-        #     for j in range(i, i + 4):
-        #         single_qubit_gates = []
-        #         for k in range(0, 3):
-        #             single_qubit_gates += [[-1, -1]]
-        #         block_gates += [single_qubit_gates]
-        #     params_mapping += [block_gates]
-        #
-        # params_mapping += [-1
-
-        return params_mapping
-
-    def init_params(self, num_params):
-        params = list(2*math.pi*np.random.rand(num_params))
-
-
     def prep_circuit_program(self):
         prog = Program()
         #Prepare parametric gates
-        self.params, self.params_mapping = self.get_params_and_mapping(prog)
+        self.params = self.get_params(prog)
         params_dict = {}
-        # l = 4
-        # for i in range(0, l):
-        #     #number of gates in the ith layer is 2^(log(n)-i-1)
-        #     for j in range(i, i+4):
-        #         q1 = j
-        #         q2 = j + 1
-        #         for k in range(0, 3):
-        #             #TODO: call the function to create gates in here instead of creating them beforehand
-        #             #Declare the parameters here and just pass them to the single qqubit unitary function
-        #             #need to have the program handle a vector of params since our optimizers cannot handle a tensor or a dictionary
-        #             #make mapping between params tensor and vector
-        #             index = self.params_mapping[i][j][k][0]
-        #             angles = self.params[index], self.params[index+1], self.params[index+2]
-        #             prog.inst([g for g in self.single_qubit_unitary(angles, q1)])
-        #             index = self.params_mapping[i][j][k][1]
-        #             angles = self.params[index], self.params[index+1], self.params[index+2]
-        #             prog.inst([g for g in self.single_qubit_unitary(angles, q2)])
-        #             prog.inst(CZ(q1, q2))
         for i in range(len(gates)):
             q1 = gates[i][0]
             q2 = gates[i][1]
             for k in range(0, 3):
-                index = self.params_mapping[i]
+                index = i*18+6*k
                 angles = self.params[index], self.params[index+1], self.params[index+2]
                 prog.inst([g for g in self.single_qubit_unitary(angles, q1)])
                 index += 3
@@ -98,38 +59,17 @@ class Model:
                 prog.inst([g for g in self.single_qubit_unitary(angles, q2)])
                 prog.inst(CZ(q1, q2))
 
-        index = self.params_mapping[len(gates)]
+        index = 18*len(gates)
         angles = self.params[index], self.params[index+1], self.params[index+2]
-        prog.inst([g for g in self.single_qubit_unitary(angles, math.floor(math.log(self.n, 2)))])
+        prog.inst([g for g in self.single_qubit_unitary(angles, self.n - 1)])
         ro = prog.declare('ro', memory_type='BIT', memory_size=1)
         prog.measure(self.n - 1, ro[0])
         return prog
 
-    def get_params_and_mapping(self, prog):
-        #TODO: Validate the input
-        # TODO Jan19 change this to allow for arbitrary gates - much simpler
-        params_mapping = []
-        # for gate in gates:
-        #     for k in range(0, 3):
-        #         params += []
-        count = 0
-        # l = 4 #blocks of 4
-        # for i in range(0, l):
-        #     for j in range(i, i + 4):
-        #         for k in range(0, 3):
-        #             params_mapping[i][j][k][0] = count
-        #             count += 3
-        #             params_mapping[i][j][k][1] = count
-        #             count += 3
-        # params_mapping[4] = count
-        # count += 3
-        # self.count = count
-        # print(count)
-        for i in range(len(gates)):
-            params_mapping += 
-        params = prog.declare('params', memory_type='REAL', memory_size=count) #TODO: Fix this!!!
-        return params, params_mapping
-
+    def get_params(self, prog):
+        #18 angles for each 2 qubit gate, 3 more for the last single qubit gate
+        params = prog.declare('params', memory_type='REAL', memory_size=self.count)
+        return params
 
     def get_distribution(self, params, sample):
         # The length of the sample vector should be equal to the number
@@ -139,7 +79,6 @@ class Model:
         res = self.qc.run(self.executable, memory_map={'params': params, 'sample': sample})
         self.num_runs += self.num_trials
         count_0 = 0.0
-        # print(res)
         for x in res:
             if x == 0:
                 count_0 += 1.0

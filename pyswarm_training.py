@@ -2,10 +2,9 @@ import numpy as np
 import math
 from pyswarm import pso
 import utils
-import model
 
 
-def train(train_data, train_labels):
+def train(train_data, train_labels, mod):
     """
     """
 
@@ -21,7 +20,6 @@ def train(train_data, train_labels):
     # print("n: %d" % n)
 
     #Save parameters
-    mod = model.Model(n=n, num_trials=100)
     params = list(2*math.pi*np.random.rand(mod.count))
     dim = len(params)
     print("Number of parameters in circuit: %d " % dim)

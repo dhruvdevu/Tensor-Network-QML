@@ -13,13 +13,13 @@ class Model:
 
     def __init__(self, **kwargs):
         self.n = kwargs['n']
-        self.qc = get_qc("Aspen-0-16Q-A-qvm")
+        self.qc = get_qc("16q-qvm")
         self.num_trials = kwargs['num_trials']
         if ('seed' in kwargs.keys()):
             seed = kwargs['seed']
             # print(seed)
             np.random.seed(seed)
-        # self.params_mapping = self.prep_parameter_mapping()
+        self.params_mapping = self.prep_parameter_mapping()
         self.count = 0
         self.program = Program().inst(self.prep_state_program() + self.prep_circuit_program())
         self.program.wrap_in_numshots_loop(shots=self.num_trials)
@@ -43,21 +43,21 @@ class Model:
     def single_qubit_unitary(self, angles, qubit):
         return RX(angles[0], qubit), RZ(angles[1], qubit), RX(angles[2], qubit)
 
-    # def prep_parameter_mapping(self):
-    #     #n is the number of qubits. Here we create a circuit using only using 1 and 2 qubit unitaries
-    #     # -1 is for init
-    #     gates = []
-    #     l = math.floor(math.log(self.n, 2))
-    #     for i in range(0, l):
-    #         layer_gates = []
-    #         for j in range(0, math.floor(math.pow(2, l-i-1))):
-    #             single_qubit_gates = []
-    #             for k in range(0, 3):
-    #                 single_qubit_gates += [[-1, -1]]
-    #             layer_gates += [single_qubit_gates]
-    #         gates += [layer_gates]
-    #     gates += [-1]
-    #     return gates
+    def prep_parameter_mapping(self):
+        # l = 4 #blocks of 4
+        # params_mapping = []
+        # for i in range(0, l):
+        #     block_gates = []
+        #     for j in range(i, i + 4):
+        #         single_qubit_gates = []
+        #         for k in range(0, 3):
+        #             single_qubit_gates += [[-1, -1]]
+        #         block_gates += [single_qubit_gates]
+        #     params_mapping += [block_gates]
+        #
+        # params_mapping += [-1
+
+        return params_mapping
 
     def init_params(self, num_params):
         params = list(2*math.pi*np.random.rand(num_params))
@@ -68,26 +68,37 @@ class Model:
         #Prepare parametric gates
         self.params, self.params_mapping = self.get_params_and_mapping(prog)
         params_dict = {}
-        l = math.floor(math.log(self.n, 2))
-        for i in range(0, l):
-            #number of gates in the ith layer is 2^(log(n)-i-1)
-            for j in range(0, math.floor(math.pow(2, l-i-1))):
-                q1 = 2**i - 1 + j*(2**(i + 1))
-                q2 = q1  + 2**i
-                for k in range(0, 3):
-                    #TODO: call the function to create gates in here instead of creating them beforehand
-                    #Declare the parameters here and just pass them to the single qqubit unitary function
-                    #need to have the program handle a vector of params since our optimizers cannot handle a tensor or a dictionary
-                    #make mapping between params tensor and vector
-                    index = self.params_mapping[i][j][k][0]
-                    angles = self.params[index], self.params[index+1], self.params[index+2]
-                    prog.inst([g for g in self.single_qubit_unitary(angles, q1)])
-                    index = self.params_mapping[i][j][k][1]
-                    angles = self.params[index], self.params[index+1], self.params[index+2]
-                    prog.inst([g for g in self.single_qubit_unitary(angles, q2)])
-                    prog.inst(CZ(q1, q2))
+        # l = 4
+        # for i in range(0, l):
+        #     #number of gates in the ith layer is 2^(log(n)-i-1)
+        #     for j in range(i, i+4):
+        #         q1 = j
+        #         q2 = j + 1
+        #         for k in range(0, 3):
+        #             #TODO: call the function to create gates in here instead of creating them beforehand
+        #             #Declare the parameters here and just pass them to the single qqubit unitary function
+        #             #need to have the program handle a vector of params since our optimizers cannot handle a tensor or a dictionary
+        #             #make mapping between params tensor and vector
+        #             index = self.params_mapping[i][j][k][0]
+        #             angles = self.params[index], self.params[index+1], self.params[index+2]
+        #             prog.inst([g for g in self.single_qubit_unitary(angles, q1)])
+        #             index = self.params_mapping[i][j][k][1]
+        #             angles = self.params[index], self.params[index+1], self.params[index+2]
+        #             prog.inst([g for g in self.single_qubit_unitary(angles, q2)])
+        #             prog.inst(CZ(q1, q2))
+        for i in range(len(gates)):
+            q1 = gates[i][0]
+            q2 = gates[i][1]
+            for k in range(0, 3):
+                index = self.params_mapping[i]
+                angles = self.params[index], self.params[index+1], self.params[index+2]
+                prog.inst([g for g in self.single_qubit_unitary(angles, q1)])
+                index += 3
+                angles = self.params[index], self.params[index+1], self.params[index+2]
+                prog.inst([g for g in self.single_qubit_unitary(angles, q2)])
+                prog.inst(CZ(q1, q2))
 
-        index = self.params_mapping[math.floor(math.log(self.n, 2))]
+        index = self.params_mapping[len(gates)]
         angles = self.params[index], self.params[index+1], self.params[index+2]
         prog.inst([g for g in self.single_qubit_unitary(angles, math.floor(math.log(self.n, 2)))])
         ro = prog.declare('ro', memory_type='BIT', memory_size=1)
@@ -96,23 +107,26 @@ class Model:
 
     def get_params_and_mapping(self, prog):
         #TODO: Validate the input
-        # params_mapping = self.params_mapping
-        for gate in gates:
-            for k in range(0, 3):
-                params += []
+        # TODO Jan19 change this to allow for arbitrary gates - much simpler
+        params_mapping = []
+        # for gate in gates:
+        #     for k in range(0, 3):
+        #         params += []
         count = 0
-        l = 4 #blocks of 4
-        for i in range(0, l):
-            for j in range(i, i + 4):
-                for k in range(0, 3):
-                    params_mapping[i][j][k][0] = count
-                    count += 3
-                    params_mapping[i][j][k][1] = count
-                    count += 3
-        params_mapping[4] = count
-        count += 3
-        self.count = count
-        print(count)
+        # l = 4 #blocks of 4
+        # for i in range(0, l):
+        #     for j in range(i, i + 4):
+        #         for k in range(0, 3):
+        #             params_mapping[i][j][k][0] = count
+        #             count += 3
+        #             params_mapping[i][j][k][1] = count
+        #             count += 3
+        # params_mapping[4] = count
+        # count += 3
+        # self.count = count
+        # print(count)
+        for i in range(len(gates)):
+            params_mapping += 
         params = prog.declare('params', memory_type='REAL', memory_size=count) #TODO: Fix this!!!
         return params, params_mapping
 

@@ -2,11 +2,11 @@ import numpy as np
 import math
 from noisyopt import minimizeSPSA
 
-import model
+
 import numpy as np
 import utils
 
-def train(train_data, train_labels):
+def train(train_data, train_labels, mo):
     """
     """
 
@@ -24,7 +24,6 @@ def train(train_data, train_labels):
     print("n: %d" % n)
 
     #Save parameters
-    mod = model.Model(n=n, num_trials=1)
     params = list(2*math.pi*np.random.rand(mod.count))
     dim = len(params)
     print("Number of parameters in circuit: %d " % dim)

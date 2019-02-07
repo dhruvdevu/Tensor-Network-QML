@@ -4,15 +4,15 @@ import test
 import argparse
 import utils
 import numpy as np
-import model_no_swap as model
+import model_simulate_wf as model
 
 parser = argparse.ArgumentParser(description='Train model')
 parser.add_argument("--savefile", help="filename to save params", type=str)
-parser.add_argument("--data", help="bw, grey, or mnist", type = str, default = 'mnist')
+# parser.add_argument("--data", help="bw, grey, or mnist", type = str, default = 'mnist')
 parser.add_argument("--method", help="pyswarm or spsa", type = str, default = 'spsa')
 args = parser.parse_args()
 
-train_data, train_labels, test_data, test_labels = utils.load_data(args.data)
+train_data, train_labels, test_data, test_labels = utils.load_data('mnist')
 #TODO: make hyperparameters also arguments to train()
 params = None
 n = len(train_data[0])

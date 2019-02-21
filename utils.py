@@ -16,3 +16,9 @@ def load_data(type):
         return (train_data, train_labels, test_data, test_labels)
     else:
         print("Invalid data choice")
+
+def save_params(params):
+    np.savetxt("params/temp.csv", params, delimiter = ",")
+
+def load_params(filename):
+    return np.loadtxt(open("params/" + filename, "rb"), delimiter = ",")

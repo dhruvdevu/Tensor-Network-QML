@@ -1,6 +1,6 @@
 import numpy as np
 import math
-import model
+import model_full_simulate_wf as model
 import utils
 import argparse
 from tqdm import tqdm

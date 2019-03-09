@@ -20,7 +20,7 @@ def train(train_data, train_labels, mod):
     # print("n: %d" % n)
 
     #Save parameters
-    params = list(2*math.pi*np.random.rand(mod.count))
+    params = list(2*np.random.rand(mod.count)-1)
     dim = len(params)
     print("Number of parameters in circuit: %d " % dim)
 

@@ -1,4 +1,5 @@
 import numpy as np
+import data
 
 DATA_DIR = 'data/'
 def load_data(type):
@@ -22,3 +23,10 @@ def save_params(params):
 
 def load_params(filename):
     return np.loadtxt(open("params/" + filename, "rb"), delimiter = ",")
+
+def load_mnist_data(data_path, digits, val_split=0.1):
+    (train_samples, val_samples, test_samples) = data.get_data(data_path, digits, val_split)
+    (train_data, train_labels) = train_samples
+    (val_data, val_labels) = val_samples
+    (test_data, test_labels) = test_samples
+    return (train_data, train_labels, test_data, test_labels)

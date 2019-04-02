@@ -2,15 +2,18 @@ import numpy as np
 import math
 import numpy as np
 import utils
+from tqdm import tqdm
+import data
+import time
 
 def train(train_data, train_labels, mod, params=None):
     """
     """
 
-    batch_size = 1
+    batch_size = 25
     lam = .234
     eta = 5.59
-    num_iterations = 30
+    num_iterations = 20
     a = 28.0
     b = 33.0
     A = 74.1
@@ -34,19 +37,38 @@ def train(train_data, train_labels, mod, params=None):
     print("Number of parameters in circuit: %d " % dim)
 
     v = np.zeros(params.shape)
-    for k in range(num_iterations):
+    print("Number of training samples =", len(train_data))
+    print("Batch size =", batch_size)
+    for k in tqdm(range(num_iterations)):
         #Good choice for Delta is the Radechemar distribution acc 2*np.random.random(dim)-1to wiki
         delta = 2*np.random.random(dim)-1#np.random.binomial(n=1, p=0.5, size=dim)
         alpha = a/(k+1+A)**s
         beta = b/(k+1)**t
-        perturb = params + alpha*delta
-        L1 = mod.get_loss(perturb, train_data, train_labels, lam, eta, batch_size)
-        perturb = params - alpha*delta
-        L2 = mod.get_loss(perturb, train_data, train_labels, lam, eta, batch_size)
-        g = (L1-L2)/(2*alpha)
-        v = gamma*v - g*beta*delta
-        params = params + v
-        utils.save_params(params)
+        # perturb = params + alpha*delta
+        batch_iter = data.batch_generator(train_data, train_labels, batch_size)
+        j = 0
+        for (images, labels) in batch_iter:
+            print("Epoch ", k, " batch ", j)
+            j+=1
+            perturb = params + alpha*delta
+            # start = time.time()
+            L1 = mod.get_loss(perturb, images, labels, lam, eta, len(images))
+            perturb = params - alpha*delta
+            L2 = mod.get_loss(perturb, images, labels, lam, eta, len(images))
+            # end = time.time()
+            # print("Time for update for a single batch =", end-start)
+            g = (L1-L2)/(2*alpha)
+            v = gamma*v - g*beta*delta
+            params = params + v
+            utils.save_params(params)
+        # L1 = mod.get_loss(perturb, train_data, train_labels, lam, eta, batch_size)
+        # perturb = params - alpha*delta
+        # L2 = mod.get_loss(perturb, train_data, train_labels, lam, eta, batch_size)
+        # g = (L1-L2)/(2*alpha)
+        # v = gamma*v - g*beta*delta
+        # params = params + v
+        # utils.save_params(params)
+
 
 
     print(params)

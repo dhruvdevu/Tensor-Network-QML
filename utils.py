@@ -24,7 +24,7 @@ def save_params(params):
 def load_params(filename):
     return np.loadtxt(open("params/" + filename, "rb"), delimiter = ",")
 
-def load_mnist_data(data_path, digits, val_split=0.1):
+def load_mnist_data(data_path, digits, val_split=0.7):
     (train_samples, val_samples, test_samples) = data.get_data(data_path, digits, val_split)
     (train_data, train_labels) = train_samples
     (val_data, val_labels) = val_samples

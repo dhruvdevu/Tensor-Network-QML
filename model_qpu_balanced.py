@@ -1,5 +1,5 @@
 from pyquil import Program, get_qc
-from pyquil.gates import CNOT, H, RZ, RY, RX, CZ, MEASURE
+from pyquil.gates import CNOT, H, RZ, RY, RX, CZ, MEASURE, SWAP
 from pyquil.api import WavefunctionSimulator
 from pyquil.quil import DefGate
 from collections import deque
@@ -9,14 +9,13 @@ import scipy
 import time
 import data
 
-wf_sim = WavefunctionSimulator()
 gates = [[0,1], [2,3], [1,3], [4,5], [6,7], [5,7], [8,9], [10,11], [9, 11], [12,13], [14,15], [13,15], [3,7], [11,15], [7, 15]]
 
 class Model:
 
     def __init__(self, **kwargs):
         self.n = kwargs['n']
-        self.qc = get_qc("16q-qvm")#get_qc("Aspen-1-15Q-A", as_qvm=True, noisy=False)
+        self.qc = get_qc("16q-qvm")#get_qc("Aspen-1-15Q-A", as_qvm=True, noisy=False) or get_qc("Aspen-1-16Q-A")
         self.num_trials = kwargs['num_trials']
         if ('seed' in kwargs.keys()):
             seed = kwargs['seed']
@@ -97,29 +96,27 @@ class Model:
 
         return prog
 
-    def get_params(self, prog):
-        #18 angles for each 2 qubit gate, 3 more for the last single qubit gate
-        params = prog.declare('params', memory_type='REAL', memory_size=self.count)
-        return params
+    # def get_params(self, prog):
+    #     #18 angles for each 2 qubit gate, 3 more for the last single qubit gate
+    #     params = prog.declare('params', memory_type='REAL', memory_size=self.count)
+    #     return params
 
     def get_distribution(self, params, sample):
-        # The length of the sample vector should be equal to the number
-        # of qubits.
-        assert (self.n == len(sample))
 
         start_time = time.time()
-        self.num_runs += 1
-        wave_func = wf_sim.wavefunction(self.prep_state_program(sample) + self.prep_circuit_program(params))
-        prob_dict = wave_func.get_outcome_probs()
-        prob0 = 0.0
-        for bitstring, prob in prob_dict.items():
-            #15th qubit
-            if bitstring[0] == '0':
-                prob0 += prob
-        # print(prob0)
-        end_time  = time.time()
-        # print("Time to get distribution = ", end_time - start_time)
-        return [prob0, 1-prob0]
+        res = self.qc.run_and_measure(self.prep_state_program(sample) + self.prep_circuit_program(params), trials=self.num_trials)[15]
+        end_time = time.time()
+        print("Time taken for", self.num_trials, " trials =", end_time-start_time)
+        self.num_runs += self.num_trials
+        count_0 = 0.0
+        for x in res:
+            if x == 0:
+                count_0 += 1.0
+        return [count_0/self.num_trials, 1-count_0/self.num_trials]
+
+
+
+
 
 
     def get_loss(self, params, *args, **kwargs):

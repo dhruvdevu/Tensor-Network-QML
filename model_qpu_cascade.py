@@ -9,8 +9,8 @@ import scipy
 import time
 import data
 
-wf_sim = WavefunctionSimulator()
-gates = [[0,1], [2,3], [1,3], [4,5], [6,7], [5,7], [8,9], [10,11], [9, 11], [12,13], [14,15], [13,15], [3,7], [11,15], [7, 15]]
+
+gates = [[0,1], [1,2], [2,3], [4,5], [5,6], [6,7], [8,9], [9,10], [10, 11], [12,13], [13,14], [14,15], [3,7], [11,15], [7, 15]]
 
 class Model:
 
@@ -105,21 +105,16 @@ class Model:
     def get_distribution(self, params, sample):
         # The length of the sample vector should be equal to the number
         # of qubits.
-        assert (self.n == len(sample))
-
         start_time = time.time()
-        self.num_runs += 1
-        wave_func = wf_sim.wavefunction(self.prep_state_program(sample) + self.prep_circuit_program(params))
-        prob_dict = wave_func.get_outcome_probs()
-        prob0 = 0.0
-        for bitstring, prob in prob_dict.items():
-            #15th qubit
-            if bitstring[0] == '0':
-                prob0 += prob
-        # print(prob0)
-        end_time  = time.time()
-        # print("Time to get distribution = ", end_time - start_time)
-        return [prob0, 1-prob0]
+        res = self.qc.run_and_measure(self.prep_state_program(sample) + self.prep_circuit_program(params), trials=self.num_trials)[15]
+        end_time = time.time()
+        print("Time taken for", self.num_trials, " trials =", end_time-start_time)
+        self.num_runs += self.num_trials
+        count_0 = 0.0
+        for x in res:
+            if x == 0:
+                count_0 += 1.0
+        return [count_0/self.num_trials, 1-count_0/self.num_trials]
 
 
     def get_loss(self, params, *args, **kwargs):

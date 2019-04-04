@@ -1,7 +1,7 @@
 import numpy as np
 import math
 # import model_full_simulate_wf as model
-import model
+import model_qpu_cascade as model
 import utils
 import argparse
 from tqdm import tqdm
@@ -36,5 +36,6 @@ if __name__ == '__main__':
     if args.num == None:
         args.num = len(test_data)
     n = 16
-    mod = model.Model(n=n, num_trials=1, classes=[args.class1, args.class2])
+    n_trials = 1
+    mod = model.Model(n=n, num_trials=n_trials, classes=[args.class1, args.class2])
     get_accuracy(test_data[:args.num], test_labels[:args.num], mod, params)

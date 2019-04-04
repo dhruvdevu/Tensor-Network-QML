@@ -11,12 +11,12 @@ import data
 
 
 gates = [[0,1], [1,2], [2,3], [4,5], [5,6], [6,7], [8,9], [9,10], [10, 11], [12,13], [13,14], [14,15], [3,7], [11,15], [7, 15]]
-
+qubit_mapping = {0:5, 1:4, 2:3, 3:2, 4:6, 5:7, 6:0, 7:1, 8:12, 9:13, 10:14, 11:15, 12:11, 13:10, 14:17, 15:16}
 class Model:
 
     def __init__(self, **kwargs):
         self.n = kwargs['n']
-        self.qc = get_qc("16q-qvm")#get_qc("Aspen-1-15Q-A", as_qvm=True, noisy=False)
+        self.qc = get_qc("Aspen-1-16Q-A")
         self.num_trials = kwargs['num_trials']
         if ('seed' in kwargs.keys()):
             seed = kwargs['seed']
@@ -38,7 +38,7 @@ class Model:
             # val = (sample[i]-num0)/(num1-num0)
             val = sample[i]
             angle = math.pi*val#/2
-            prog.inst(RY(angle, i))
+            prog.inst(RY(angle, qubit_mapping[i]))
         return prog
 
     def single_qubit_unitary(self, params, qubit):
@@ -81,8 +81,8 @@ class Model:
 
         prog = Program()
         for i in range(len(gates)):
-            q1 = gates[i][0]
-            q2 = gates[i][1]
+            q1 = qubit_mapping[gates[i][0]]
+            q2 = qubit_mapping[gates[i][1]]
             index = i*16
             unitary = self.two_qubit_unitary(params[index:index+16])
             gate_definition = DefGate("GATE"+str(q1)+"-"+str(q2), unitary)
@@ -106,7 +106,7 @@ class Model:
         # The length of the sample vector should be equal to the number
         # of qubits.
         start_time = time.time()
-        res = self.qc.run_and_measure(self.prep_state_program(sample) + self.prep_circuit_program(params), trials=self.num_trials)[15]
+        res = self.qc.run_and_measure(self.prep_state_program(sample) + self.prep_circuit_program(params), trials=self.num_trials)[qubit_mapping[15]]
         end_time = time.time()
         print("Time taken for", self.num_trials, " trials =", end_time-start_time)
         self.num_runs += self.num_trials
